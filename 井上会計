@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>店舗会計計算機</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background-color: #121212; color: #eee; padding: 20px; margin: 0; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 20px; max-width: 400px; margin: 20px auto; border: 1px solid #333; }
+        h2 { text-align: center; color: #fff; margin-bottom: 20px; font-size: 18px; }
+        .section-title { font-size: 12px; color: #888; margin: 20px 0 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .input-group { margin-bottom: 15px; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+        label { flex: 1; font-size: 14px; margin-right: auto; }
+        .input-wrapper { display: flex; align-items: center; gap: 5px; }
+        input { width: 90px; padding: 12px; border: 1px solid #444; border-radius: 10px; text-align: right; font-size: 18px; background: #2a2a2a; color: #fff; -webkit-appearance: none; }
+        .unit { font-size: 14px; color: #aaa; width: 40px; }
+        
+        /* 結果エリアの共通設定 */
+        .result-area { margin-top: 15px; padding: 15px; border-radius: 15px; border: 1px solid #333; }
+        .normal-res { background: #252525; }
+        .adj-res { background: #1a2a1a; border-color: #32d74b; margin-top: 20px; }
+        
+        .result-row { display: flex; justify-content: space-between; margin-bottom: 8px; color: #aaa; font-size: 14px; }
+        .total-row { font-size: 18px; font-weight: bold; color: #fff; border-top: 1px solid #444; padding-top: 10px; margin-top: 5px; display: flex; justify-content: space-between; align-items: baseline; }
+        
+        /* 調整後の合計スタイル */
+        .final-val { color: #32d74b; font-size: 32px; }
+        .per-person { font-size: 14px; color: #aaa; text-align: right; margin-top: 5px; }
+        
+        button { width: 100%; padding: 15px; background: #3a3a3c; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; margin-top: 20px; }
+        #ninzu { border-color: #5e5ce6; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>スナックバー井上 会計計算</h2>
+
+    <div class="section-title">人数設定</div>
+    <div class="input-group">
+        <label><strong>合計人数</strong></label>
+        <div class="input-wrapper">
+            <input type="number" id="ninzu" placeholder="1" oninput="calc()">
+            <span class="unit">名</span>
+        </div>
+    </div>
+
+    <div class="section-title">基本料金 (1人あたり/1h)</div>
+    <div class="input-group">
+        <label>飲み放題<br><small>3,000円</small></label>
+        <div class="input-wrapper">
+            <input type="number" id="nomi" placeholder="0" step="0.5" oninput="calc()">
+            <span class="unit">時間</span>
+        </div>
+    </div>
+    <div class="input-group">
+        <label>ボトル利用<br><small>2,500円</small></label>
+        <div class="input-wrapper">
+            <input type="number" id="bottle_time" placeholder="0" step="0.5" oninput="calc()">
+            <span class="unit">時間</span>
+        </div>
+    </div>
+
+    <div class="section-title">オーダー</div>
+    <div class="input-group">
+        <label>ドリンク (1,000円)</label>
+        <div class="input-wrapper">
+            <input type="number" id="drink" placeholder="0" oninput="calc()">
+            <span class="unit">杯</span>
+        </div>
+    </div>
+    <div class="input-group">
+        <label>ショット (1,200円)</label>
+        <div class="input-wrapper">
+            <input type="number" id="shot" placeholder="0" oninput="calc()">
+            <span class="unit">杯</span>
+        </div>
+    </div>
+    <div class="input-group">
+        <label>炭酸 (500円)</label>
+        <div class="input-wrapper">
+            <input type="number" id="tansan" placeholder="0" oninput="calc()">
+            <span class="unit">本</span>
+        </div>
+    </div>
+    <div class="input-group">
+        <label>ボトル</label>
+        <div class="input-wrapper">
+            <input type="number" id="bottle_price" placeholder="0" oninput="calc()">
+            <span class="unit">円</span>
+        </div>
+    </div>
+    <div class="input-group">
+        <label>その他</label>
+        <div class="input-wrapper">
+            <input type="number" id="other" placeholder="0" oninput="calc()">
+            <span class="unit">円</span>
+        </div>
+    </div>
+
+    <div class="section-title">本来の計算 (1円単位)</div>
+    <div class="result-area normal-res">
+        <div class="result-row">
+            <span>小計 (税抜)</span>
+            <span id="raw_sub">0円</span>
+        </div>
+        <div class="result-row">
+            <span>消費税 (10%)</span>
+            <span id="raw_tax">0円</span>
+        </div>
+        <div class="total-row">
+            <span>合計</span>
+            <span id="raw_total">0円</span>
+        </div>
+    </div>
+
+    <div class="section-title" style="color: #32d74b;">請求用 (端数切り上げ適用)</div>
+    <div class="result-area adj-res">
+        <div class="result-row">
+            <span>小計 (逆算)</span>
+            <span id="adj_sub">0円</span>
+        </div>
+        <div class="result-row">
+            <span>消費税 (逆算)</span>
+            <span id="adj_tax">0円</span>
+        </div>
+        <div class="total-row">
+            <span>合計</span>
+            <span id="final_total" class="final-val">0円</span>
+        </div>
+        <div id="per_person" class="per-person">1人あたり: 0円</div>
+    </div>
+
+    <button onclick="window.location.reload()">入力をリセット</button>
+</div>
+
+<script>
+    function calc() {
+        const getValue = (id) => parseFloat(document.getElementById(id).value) || 0;
+        const ninzu = parseFloat(document.getElementById('ninzu').value) || 1;
+        
+        const nomi = getValue('nomi');
+        const bTime = getValue('bottle_time');
+        const drink = getValue('drink');
+        const shot = getValue('shot');
+        const tansan = getValue('tansan');
+        const bPrice = getValue('bottle_price');
+        const other = getValue('other');
+
+        // --- A. 本来の計算 ---
+        const subtotal = ((nomi * 3000) * ninzu) + ((bTime * 2500) * ninzu) + (drink * 1000) + (shot * 1200) + (tansan * 500) + bPrice + other;
+        const tax = Math.floor(subtotal * 0.1);
+        const rawTotal = subtotal + tax;
+
+        // --- B. 端数処理（100円単位切り上げ） ---
+        let finalTotal = 0;
+        if (rawTotal > 0) {
+            finalTotal = Math.ceil(rawTotal / 100) * 100;
+        }
+
+        // --- C. 確定合計から小計と税を逆算 ---
+        const adjSubtotal = Math.ceil(finalTotal / 1.1);
+        const adjTax = finalTotal - adjSubtotal;
+
+        // --- D. 1人あたりの計算（ここを修正！） ---
+        // 合計を人数で割ったあと、1円単位を切り上げることで「集めたら合計より多くなる」ようにします
+        const perPerson = Math.ceil(finalTotal / ninzu);
+
+        // 画面に反映
+        document.getElementById('raw_sub').innerText = subtotal.toLocaleString() + "円";
+        document.getElementById('raw_tax').innerText = tax.toLocaleString() + "円";
+        document.getElementById('raw_total').innerText = rawTotal.toLocaleString() + "円";
+        
+        document.getElementById('adj_sub').innerText = adjSubtotal.toLocaleString() + "円";
+        document.getElementById('adj_tax').innerText = adjTax.toLocaleString() + "円";
+        document.getElementById('final_total').innerText = finalTotal.toLocaleString() + "円";
+        document.getElementById('per_person').innerText = "1人あたり: " + perPerson.toLocaleString() + "円";
+     }
+</script>
+
+</body>
+</html>
