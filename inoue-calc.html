@@ -15,19 +15,22 @@
         input[type="number"], input[type="text"], input[type="time"] { width: 85px; padding: 10px; border: 1px solid #444; border-radius: 10px; text-align: right; font-size: 16px; background: #2a2a2a; color: #fff; -webkit-appearance: none; color-scheme: dark; }
         input[type="time"] { width: 95px; text-align: center; }
         input[type="text"].full-width { width: 100%; text-align: left; box-sizing: border-box; }
-        input[type="checkbox"] { width: 25px; height: 25px; margin: 0; }
+        input[type="checkbox"] { width: 25px; height: 25px; margin: 0; cursor: pointer; }
         .unit { font-size: 12px; color: #888; width: 35px; }
         .time-label { font-size: 11px; color: #888; margin-right: 2px; }
 
-        .toggle-btn { width: 100%; padding: 10px; background: #2c2c2e; color: #32d74b; border: 1px solid #32d74b; border-radius: 10px; font-size: 13px; margin: 10px 0; cursor: pointer; }
-        .toggle-btn.active { background: #32d74b; color: #000; }
-        #member_list { display: none; margin-top: 10px; }
+        /* 個別調整エリア */
+        .indiv-setting-group { background: #252525; padding: 10px; border-radius: 12px; margin: 15px 0; border: 1px solid #3a3a3c; }
+        .indiv-ctrl { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .indiv-ctrl label { font-size: 13px; color: #32d74b; font-weight: bold; cursor: pointer; }
+        .toggle-btn { flex: 1; padding: 8px; background: #2c2c2e; color: #aaa; border: 1px solid #444; border-radius: 8px; font-size: 12px; cursor: pointer; text-align: center; }
+        .toggle-btn.active { background: #3a3a3c; color: #fff; }
+        #member_list { display: none; margin-top: 10px; border-top: 1px dashed #444; padding-top: 10px; }
 
-        .pay-selector { display: flex; background: #2c2c2e; border-radius: 12px; padding: 4px; margin-top: 10px; }
-        .pay-btn { flex: 1; text-align: center; padding: 10px; font-size: 14px; border-radius: 10px; cursor: pointer; color: #aaa; border: none; background: transparent; transition: all 0.2s; }
-        .pay-btn.active { background: #32d74b; color: #000; font-weight: bold; }
+        /* 決済方法チェックボックス表示用スタイル */
+        .payment-label { color: #007aff !important; }
 
-        .member-row { background: #252525; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; display: block; }
+        .member-row { background: #1e1e1e; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; display: block; border: 1px solid #333; }
         .member-row-header { display: flex; justify-content: space-between; font-size: 13px; color: #fff; margin-bottom: 8px; font-weight: bold; }
         .member-row-body { display: flex; justify-content: space-between; align-items: center; gap: 5px; }
 
@@ -71,8 +74,16 @@
         <div class="input-wrapper"><input type="time" id="base_out" step="600" onchange="syncTimes('out')"></div>
     </div>
 
-    <button id="toggle_btn" class="toggle-btn" onclick="toggleMemberList()" style="display:none;">個別時間を調整する ▼</button>
-    <div id="member_list"></div>
+    <div id="indiv_container" class="indiv-setting-group" style="display:none;">
+        <div class="indiv-ctrl">
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <input type="checkbox" id="use_indiv" onclick="handleIndivCheckbox(event)">
+                <label for="use_indiv">個別調整を適用する</label>
+            </div>
+            <div id="toggle_btn" class="toggle-btn" onclick="toggleMemberList()">詳細を開く ▼</div>
+        </div>
+        <div id="member_list"></div>
+    </div>
 
     <div class="section-title">プラン選択 (1人/1hあたり)</div>
     <div class="input-group"><label>飲み放題 (3,000円)</label><div class="input-wrapper"><input type="checkbox" id="mode_nomi" onchange="selectPlan('nomi')"></div></div>
@@ -93,9 +104,9 @@
     </div>
 
     <div class="section-title">決済方法</div>
-    <div class="pay-selector">
-        <button id="pay_cash" class="pay-btn active" onclick="selectPayment('cash')">現金 (端数切上)</button>
-        <button id="pay_card" class="pay-btn" onclick="selectPayment('card')">カード (+10%)</button>
+    <div class="input-group">
+        <label for="use_card" class="payment-label">カード決済 (+10%) を適用する</label>
+        <div class="input-wrapper"><input type="checkbox" id="use_card" onchange="calc()"></div>
     </div>
 
     <div class="section-title" id="adj_title" style="color: #32d74b;">請求用 (端数切上適用)</div>
@@ -130,19 +141,11 @@
 </div>
 
 <script>
-    let isIndividualMode = false;
-    let paymentMethod = 'cash';
     let inputCustomerName = ""; 
 
     window.onload = function() {
-        const now = new Date();
-        let m = Math.floor(now.getMinutes() / 10) * 10;
-        now.setMinutes(m);
-        const formatTime = (d) => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-        
-        document.getElementById('base_in').value = formatTime(now);
-        now.setHours(now.getHours() + 1);
-        document.getElementById('base_out').value = formatTime(now);
+        document.getElementById('base_in').value = "";
+        document.getElementById('base_out').value = "";
         calc();
     }
 
@@ -154,27 +157,26 @@
         calc();
     }
 
-    function selectPayment(method) {
-        paymentMethod = method;
-        document.getElementById('pay_cash').classList.toggle('active', method === 'cash');
-        document.getElementById('pay_card').classList.toggle('active', method === 'card');
-        
-        const title = document.getElementById('adj_title');
-        const subLabel = document.getElementById('adj_sub_label');
-        if (method === 'card') {
-            title.innerText = "請求用 (端数調整後 + カード10%)";
-            subLabel.innerText = "小計 (カード調整後)";
-        } else {
-            title.innerText = "請求用 (端数切上適用)";
-            subLabel.innerText = "小計 (調整後)";
-        }
-        calc();
-    }
-
     function toggleReceiptAtena() {
         const checkbox = document.getElementById('need_receipt');
         const group = document.getElementById('receipt_atena_group');
         group.style.display = checkbox.checked ? 'block' : 'none';
+    }
+
+    // ★ 個別調整チェックボックスの操作制御
+    function handleIndivCheckbox(event) {
+        const checkbox = event.target;
+        // チェックを外そうとした時だけポップアップを出す
+        if (!checkbox.checked) {
+            // いったん見た目のチェック状態を戻しておく
+            checkbox.checked = true;
+            if (confirm("個別調整を削除しますがよろしいですか？")) {
+                checkbox.checked = false;
+                calc();
+            }
+        } else {
+            calc();
+        }
     }
 
     function toggleMemberList() {
@@ -182,35 +184,31 @@
         const btn = document.getElementById('toggle_btn');
         if (list.style.display === 'none' || list.style.display === '') {
             list.style.display = 'block';
-            btn.innerText = '個別調整を閉じる ▲';
+            btn.innerText = '詳細を閉じる ▲';
             btn.classList.add('active');
-            isIndividualMode = true;
         } else {
             list.style.display = 'none';
-            btn.innerText = '個別時間を調整する ▼';
+            btn.innerText = '詳細を開く ▼';
             btn.classList.remove('active');
-            isIndividualMode = false;
-            syncTimes('all');
         }
-        calc();
     }
 
     function generateMembers() {
         const ninzu = parseInt(document.getElementById('ninzu').value) || 1;
         const baseIn = document.getElementById('base_in').value;
         const baseOut = document.getElementById('base_out').value;
+        const container = document.getElementById('indiv_container');
         const list = document.getElementById('member_list');
-        const btn = document.getElementById('toggle_btn');
         
         if (ninzu <= 1) {
-            btn.style.display = 'none';
+            container.style.display = 'none';
             list.style.display = 'none';
-            isIndividualMode = false;
+            document.getElementById('use_indiv').checked = false;
             list.innerHTML = '';
             calc();
             return;
         }
-        btn.style.display = 'block';
+        container.style.display = 'block';
 
         const currentInputsIn = list.getElementsByClassName('m-in');
         const currentInputsOut = list.getElementsByClassName('m-out');
@@ -252,7 +250,6 @@
         calc();
     }
 
-    // ★ 30分切り上げを廃止し、分単位からストレートにh数を算出する（1時間10分 ➔ 1.1666...h）
     function computeBillableHours(timeIn, timeOut) {
         if (!timeIn || !timeOut) return 0;
         
@@ -260,11 +257,9 @@
         const [outH, outM] = timeOut.split(':').map(Number);
         
         let diffMinutes = (outH * 60 + outM) - (inH * 60 + inM);
-        
         if (diffMinutes <= 0) {
             diffMinutes += 24 * 60; 
         }
-        
         return diffMinutes / 60;
     }
 
@@ -280,7 +275,9 @@
         let totalBillableHours = 0;
         let timeDetailsLog = "";
 
-        if (isIndividualMode) {
+        const useIndiv = document.getElementById('use_indiv').checked;
+
+        if (useIndiv && ninzu > 1) {
             const memberIn = document.getElementsByClassName('m-in');
             const memberOut = document.getElementsByClassName('m-out');
             
@@ -289,7 +286,13 @@
                 totalBillableHours += h;
                 
                 const indicator = document.getElementById(`m_calc_time_${i+1}`);
-                if (indicator) indicator.innerText = `${memberIn[i].value}～${memberOut[i].value} (${Math.round(h * 60)}分)`;
+                if (indicator) {
+                    if (memberIn[i].value && memberOut[i].value) {
+                        indicator.innerText = `${memberIn[i].value}～${memberOut[i].value} (${Math.round(h * 60)}分)`;
+                    } else {
+                        indicator.innerText = "未入力";
+                    }
+                }
             }
             timeDetailsLog = `個別調整 (計 ${Math.round(totalBillableHours * 60)}分)`;
         } else {
@@ -297,7 +300,12 @@
             const baseOut = document.getElementById('base_out').value;
             const singlePersonHours = computeBillableHours(baseIn, baseOut);
             totalBillableHours = singlePersonHours * ninzu;
-            timeDetailsLog = `${baseIn}～${baseOut} (1人:${Math.round(singlePersonHours * 60)}分 ➔ 計:${Math.round(totalBillableHours * 60)}分)`;
+            
+            if (baseIn && baseOut) {
+                timeDetailsLog = `${baseIn}～${baseOut} (1人:${Math.round(singlePersonHours * 60)}分 ➔ 計:${Math.round(totalBillableHours * 60)}分)`;
+            } else {
+                timeDetailsLog = "時間未入力";
+            }
         }
 
         const baseTotal = totalBillableHours * hourlyRate;
@@ -313,11 +321,20 @@
 
         const cashAdjustedTotal = rawTotal > 0 ? Math.ceil(rawTotal / 100) * 100 : 0;
 
+        // ★ 決済方法の判定（チェックボックスの状態を見る）
+        const isCard = document.getElementById('use_card').checked;
+        const title = document.getElementById('adj_title');
+        const subLabel = document.getElementById('adj_sub_label');
+
         let finalTotal = 0;
-        if (paymentMethod === 'card') {
+        if (isCard) {
             finalTotal = cashAdjustedTotal > 0 ? Math.floor(cashAdjustedTotal * 1.1) : 0;
+            title.innerText = "請求用 (端数調整後 + カード10%)";
+            subLabel.innerText = "小計 (カード調整後)";
         } else {
             finalTotal = cashAdjustedTotal;
+            title.innerText = "請求用 (端数切上適用)";
+            subLabel.innerText = "小計 (調整後)";
         }
         
         const adjSubtotal = Math.round(finalTotal / 1.1);
@@ -347,7 +364,7 @@
             final: finalTotal,
             sub: adjSubtotal,
             tax: adjTax,
-            pay: paymentMethod === 'card' ? "クレジットカード" : "現金"
+            pay: isCard ? "クレジットカード" : "現金"
         };
     }
 
@@ -365,7 +382,8 @@
 
     function checkAndSaveImage() {
         calc();
-        const payName = paymentMethod === 'card' ? "【 クレジットカード 】" : "【 現金 】";
+        const isCard = document.getElementById('use_card').checked;
+        const payName = isCard ? "【 クレジットカード 】" : "【 現金 】";
         
         if (confirm(`決済方法は ${payName} でお間違いないですか？`)) {
             const name = prompt("会計されたお客様名を入力してください。");
@@ -386,6 +404,7 @@
     function saveAsImage() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
+        const isCard = document.getElementById('use_card').checked;
         
         canvas.width = 440;
         canvas.height = 760;
@@ -455,17 +474,17 @@
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(gData.pay + (paymentMethod === 'card' ? ' (+10%)' : ' (端数切上)'), 220, currentY + 6);
+        ctx.fillText(gData.pay + (isCard ? ' (+10%)' : ' (端数切上)'), 220, currentY + 6);
         currentY += 45;
         
-        const titleText = paymentMethod === 'card' ? "請求用 (端数調整後 + カード10%)" : "請求用 (端数切上適用)";
+        const titleText = isCard ? "請求用 (端数調整後 + カード10%)" : "請求用 (端数切上適用)";
         drawSectionTitle(titleText, currentY); currentY += 32;
         
         drawRow('小計 (調整後)', `${gData.sub.toLocaleString()}円`, currentY); currentY += 25;
         drawRow('消費税 (調整後)', `${gData.tax.toLocaleString()}円`, currentY); currentY += 35;
         
         ctx.strokeStyle = '#444444';
-        ctx.beginPath(); ctx.moveTo(40, currentY - 15); ctx.lineTo(400, currentY - 15); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(40, currentY - 15); ctx.lineTo(400, currentY - 15); stroke();
         
         ctx.textAlign = 'left';
         ctx.fillStyle = '#ffffff';
