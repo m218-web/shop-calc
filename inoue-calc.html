@@ -63,17 +63,17 @@
     <div class="input-group"><label>ボトル/シャンパン</label><div class="input-wrapper"><input type="number" id="bottle_price" placeholder="0" min="0" oninput="calc()"><span class="unit">円</span></div></div>
     <div class="input-group"><label>その他</label><div class="input-wrapper"><input type="number" id="other" placeholder="0" min="0" oninput="calc()"><span class="unit">円</span></div></div>
 
-    <div class="section-title">決済方法</div>
-    <div class="pay-selector">
-        <button id="pay_cash" class="pay-btn active" onclick="selectPayment('cash')">現金 (端数切上)</button>
-        <button id="pay_card" class="pay-btn" onclick="selectPayment('card')">カード (+10%)</button>
-    </div>
-
     <div class="section-title">本来の計算 (1円単位)</div>
     <div class="result-area normal-res">
         <div class="result-row"><span>小計 (税抜)</span><span id="raw_sub">0円</span></div>
         <div class="result-row"><span>消費税 (10%)</span><span id="raw_tax">0円</span></div>
         <div class="total-row"><span>本来の合計</span><span id="raw_total">0円</span></div>
+    </div>
+
+    <div class="section-title">決済方法</div>
+    <div class="pay-selector">
+        <button id="pay_cash" class="pay-btn active" onclick="selectPayment('cash')">現金 (端数切上)</button>
+        <button id="pay_card" class="pay-btn" onclick="selectPayment('card')">カード (+10%)</button>
     </div>
 
     <div class="section-title" id="adj_title" style="color: #32d74b;">請求用 (端数切上適用)</div>
@@ -213,13 +213,11 @@
         // 2. 一度現金ベースで「端数調整後（100円未満切り上げ）」の金額を作る
         const cashAdjustedTotal = rawTotal > 0 ? Math.ceil(rawTotal / 100) * 100 : 0;
 
-        // 3. 最終請求額を決済方法で決定
+        // 3. 最終請求額を決済方法で決定（端数調整後の金額を基準にする）
         let finalTotal = 0;
         if (paymentMethod === 'card') {
-            // カードの場合：端数調整後の金額（cashAdjustedTotal）に、さらに10%を上乗せ（端数切り捨てなし）
             finalTotal = cashAdjustedTotal > 0 ? Math.floor(cashAdjustedTotal * 1.1) : 0;
         } else {
-            // 現金の場合：端数調整後の金額そのもの
             finalTotal = cashAdjustedTotal;
         }
         
