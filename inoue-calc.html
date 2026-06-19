@@ -42,7 +42,7 @@
     <div class="section-title">基本設定</div>
     <div class="input-group">
         <label>合計人数</label>
-        <div class="input-wrapper"><input type="number" id="ninzu" placeholder="1" min="1" value="1" oninput="generateMembers()"><span class="unit">名</span></div>
+        <div class="input-wrapper"><input type="number" id="ninzu" placeholder="1" min="1" oninput="generateMembers()"><span class="unit">名</span></div>
     </div>
     <div class="input-group">
         <label>全員の基本時間</label>
@@ -89,7 +89,7 @@
 
 <script>
     let isIndividualMode = false;
-    let paymentMethod = 'cash'; // 'cash' または 'card'
+    let paymentMethod = 'cash';
 
     function selectPlan(type) {
         const nomi = document.getElementById('mode_nomi');
@@ -103,17 +103,15 @@
         calc();
     }
 
-    // 決済方法の切り替え
     function selectPayment(method) {
         paymentMethod = method;
         document.getElementById('pay_cash').classList.toggle('active', method === 'cash');
         document.getElementById('pay_card').classList.toggle('active', method === 'card');
         
-        // タイトルの文言を動的に変更
         const title = document.getElementById('adj_title');
         const subLabel = document.getElementById('adj_sub_label');
         if (method === 'card') {
-            title.innerText = "請求用 (カード手数料10%適用)";
+            title.innerText = "請求用 (端数調整後 + カード10%)";
             subLabel.innerText = "小計 (カード調整後)";
         } else {
             title.innerText = "請求用 (端数切上適用)";
@@ -207,22 +205,25 @@
         const bPrice = parseFloat(document.getElementById('bottle_price').value) || 0;
         const other = parseFloat(document.getElementById('other').value) || 0;
 
-        // 本来の計算 (現金・カード共通のベース)
+        // 1. 本来の計算（税込）
         const subtotal = baseTotal + drink + shot + tansan + bPrice + other;
         const tax = Math.floor(subtotal * 0.1);
         const rawTotal = subtotal + tax;
 
-        // 確定合計の計算（決済方法による分岐）
+        // 2. 一度現金ベースで「端数調整後（100円未満切り上げ）」の金額を作る
+        const cashAdjustedTotal = rawTotal > 0 ? Math.ceil(rawTotal / 100) * 100 : 0;
+
+        // 3. 最終請求額を決済方法で決定
         let finalTotal = 0;
         if (paymentMethod === 'card') {
-            // カードの場合：本来の合計(税込)にさらに10%を上乗せ（端数切り捨てなし＝1円単位までそのまま）
-            finalTotal = rawTotal > 0 ? Math.floor(rawTotal * 1.1) : 0;
+            // カードの場合：端数調整後の金額（cashAdjustedTotal）に、さらに10%を上乗せ（端数切り捨てなし）
+            finalTotal = cashAdjustedTotal > 0 ? Math.floor(cashAdjustedTotal * 1.1) : 0;
         } else {
-            // 現金の場合：100円未満切り上げ
-            finalTotal = rawTotal > 0 ? Math.ceil(rawTotal / 100) * 100 : 0;
+            // 現金の場合：端数調整後の金額そのもの
+            finalTotal = cashAdjustedTotal;
         }
         
-        // 確定金額から逆算する内税・小計の按分
+        // 内税・小計・1人あたりの按分
         const adjSubtotal = Math.round(finalTotal / 1.1);
         const adjTax = finalTotal - adjSubtotal;
         const perPerson = Math.ceil(finalTotal / ninzu);
