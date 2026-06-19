@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>店舗会計計算</title>
     <style>
+        /* --------------------------------------------------------
+           全体・ベースのスタイル設定
+        -------------------------------------------------------- */
         body { font-family: -apple-system, sans-serif; background-color: #121212; color: #eee; padding: 20px; margin: 0; }
         .card { background: #1e1e1e; padding: 20px; border-radius: 20px; max-width: 400px; margin: 0 auto; border: 1px solid #333; position: relative; }
         h2 { text-align: center; color: #fff; font-size: 18px; margin-bottom: 20px; }
@@ -12,15 +15,18 @@
         .input-group { margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         label { font-size: 14px; flex: 1; }
         .input-wrapper { display: flex; align-items: center; gap: 5px; }
-        input[type="number"], input[type="text"], select { padding: 10px; border: 1px solid #444; border-radius: 10px; text-align: right; font-size: 16px; background: #2a2a2a; color: #fff; -webkit-appearance: none; color-scheme: dark; }
+        
+        /* 入力フォーム共通スタイル */
+        input[type="number"], input[type="text"], input[type="tel"], select { padding: 10px; border: 1px solid #444; border-radius: 10px; text-align: right; font-size: 16px; background: #2a2a2a; color: #fff; -webkit-appearance: none; color-scheme: dark; }
         input[type="number"] { width: 85px; }
-        select { width: 115px; text-align: center; text-align-last: center; cursor: pointer; }
+        /* ★ 時間入力欄のスタイル（中央揃えで少し幅を調整） */
+        input[type="tel"].time-input { width: 115px; text-align: center; }
         input[type="text"].full-width { width: 100%; text-align: left; box-sizing: border-box; }
         input[type="checkbox"] { width: 25px; height: 25px; margin: 0; cursor: pointer; }
         .unit { font-size: 12px; color: #888; width: 35px; }
         .time-label { font-size: 11px; color: #888; margin-right: 2px; }
 
-        /* 個別調整エリア */
+        /* 個別調整エリアの設定 */
         .indiv-setting-group { background: #252525; padding: 10px; border-radius: 12px; margin: 15px 0; border: 1px solid #3a3a3c; }
         .indiv-ctrl { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .indiv-ctrl label { font-size: 13px; color: #32d74b; font-weight: bold; cursor: pointer; }
@@ -34,6 +40,7 @@
         .member-row-header { display: flex; justify-content: space-between; font-size: 13px; color: #fff; margin-bottom: 8px; font-weight: bold; }
         .member-row-body { display: flex; justify-content: space-between; align-items: center; gap: 5px; }
 
+        /* 計算結果表示エリアの設定 */
         .result-area { margin-top: 15px; padding: 15px; border-radius: 15px; border: 1px solid #333; }
         .normal-res { background: #252525; }
         .adj-res { background: #1a2a1a; border-color: #32d74b; margin-top: 20px; }
@@ -41,26 +48,26 @@
         .total-row { font-size: 18px; font-weight: bold; color: #fff; border-top: 1px solid #444; padding-top: 10px; margin-top: 5px; display: flex; justify-content: space-between; align-items: baseline; }
         .final-val { color: #32d74b; font-size: 32px; }
         
+        /* 操作ボタン */
         .save-btn { width: 100%; padding: 12px; background: #007aff; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: bold; margin-top: 15px; cursor: pointer; }
         .reset-btn { width: 100%; padding: 12px; background: #3a3a3c; color: #fff; border: none; border-radius: 12px; font-size: 14px; margin-top: 10px; cursor: pointer; }
         
         #receipt_atena_group { display: none; margin-top: 10px; animation: fadeIn 0.3s ease; }
         
-        /* 共通ポップアップスタイル */
+        /* 決済確認ポップアップ用 */
         .alert-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
         .alert-box { background: #2c2c2e; padding: 25px; border-radius: 15px; max-width: 280px; width: 80%; text-align: center; border: 1px solid #444; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .alert-msg { font-size: 15px; color: #fff; margin-bottom: 20px; line-height: 1.4; }
-        .alert-close-btn { width: 100%; padding: 10px; background: #32d74b; color: #000; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
-        
-        /* カスタム確認ダイアログ用ボタン */
         .confirm-btn-group { display: flex; gap: 10px; }
         .confirm-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
         .btn-ok { background: #32d74b; color: #000; }
         .btn-no { background: #ff453a; color: #fff; }
 
-        /* 2秒自動消滅トースト通知 */
+        /* 画面上部トースト通知 */
         .toast-overlay { display: none; position: fixed; top: 20px; left: 0; width: 100%; z-index: 2000; justify-content: center; }
-        .toast-box { background: #ff453a; color: #fff; padding: 12px 25px; border-radius: 25px; font-size: 14px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.5); animation: fadeIn 0.2s ease; }
+        .toast-box { color: #fff; padding: 12px 25px; border-radius: 25px; font-size: 14px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.5); animation: fadeIn 0.2s ease; }
+        .toast-red { background: #ff453a; }
+        .toast-green { background: #32d74b; color: #000; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
@@ -75,14 +82,17 @@
         <label>合計人数</label>
         <div class="input-wrapper"><input type="number" id="ninzu" placeholder="1" min="1" oninput="generateMembers()"><span class="unit">名</span></div>
     </div>
-    
     <div class="input-group">
         <label>全員の入店時間</label>
-        <div class="input-wrapper"><select id="base_in" onchange="syncTimes('in')"></select></div>
+        <div class="input-wrapper">
+            <input type="tel" id="base_in" class="time-input" placeholder="例: 19:30" inputmode="numeric" maxlength="5" oninput="handleTimeInput(this); syncTimes('in')">
+        </div>
     </div>
     <div class="input-group">
         <label>全員の退店時間</label>
-        <div class="input-wrapper"><select id="base_out" onchange="syncTimes('out')"></select></div>
+        <div class="input-wrapper">
+            <input type="tel" id="base_out" class="time-input" placeholder="例: 22:00" inputmode="numeric" maxlength="5" oninput="handleTimeInput(this); syncTimes('out')">
+        </div>
     </div>
 
     <div id="indiv_container" class="indiv-setting-group" style="display:none;">
@@ -144,13 +154,6 @@
     <button class="reset-btn" onclick="window.location.reload()">入力をリセット</button>
 </div>
 
-<div id="custom_alert" class="alert-overlay">
-    <div class="alert-box">
-        <div class="alert-msg">ダウンロードに保存ができました。</div>
-        <button class="alert-close-btn" onclick="closeAlert()">閉じる</button>
-    </div>
-</div>
-
 <div id="confirm_alert" class="alert-overlay">
     <div class="alert-box">
         <div id="confirm_msg" class="alert-msg"></div>
@@ -162,22 +165,24 @@
 </div>
 
 <div id="toast_alert" class="toast-overlay">
-    <div class="toast-box">決済方法を再度選択してください。</div>
+    <div id="toast_box" class="toast-box"></div>
 </div>
 
 <script>
     let inputCustomerName = ""; 
+    let gData = {};
 
+    // --------------------------------------------------------
+    // 初期化処理 (ページ読み込み時)
+    // --------------------------------------------------------
     window.onload = function() {
         const baseInSelect = document.getElementById('base_in');
         const baseOutSelect = document.getElementById('base_out');
-        
-        const timeOptionsHtml = generateTimeOptions();
-        baseInSelect.innerHTML = timeOptionsHtml;
-        baseOutSelect.innerHTML = timeOptionsHtml;
 
+        // 入店時間は初期値を空にする
         baseInSelect.value = "";
 
+        // 退店時間はデフォルトで「現在時刻の10分切り上げ」を「XX:XX」形式にしてセット
         const now = new Date();
         let minutes = now.getMinutes();
         let remainder = minutes % 10;
@@ -191,18 +196,34 @@
         calc();
     }
 
-    function generateTimeOptions() {
-        let html = '<option value="">未選択</option>';
-        for (let h = 0; h < 24; h++) {
-            const hStr = String(h).padStart(2, '0');
-            for (let m = 0; m < 60; m += 10) {
-                const mStr = String(m).padStart(2, '0');
-                html += `<option value="${hStr}:${mStr}">${hStr}:${mStr}</option>`;
-            }
-        }
-        return html;
+    // トースト通知を表示する共通関数
+    function showToast(message, colorClass) {
+        const overlay = document.getElementById('toast_alert');
+        const box = document.getElementById('toast_box');
+        box.className = 'toast-box ' + colorClass;
+        box.innerText = message;
+        overlay.style.display = 'flex';
+        setTimeout(() => { overlay.style.display = 'none'; }, 2000);
     }
 
+    // ★ 数字が4桁入力されたら自動でコロンを挟むリアルタイム画面表示制御
+    function handleTimeInput(input) {
+        // 数字以外の文字（既存のコロン等含む）を一旦すべて排除
+        let num = input.value.replace(/\D/g, '');
+        
+        // 3桁〜4桁の数字が集まったら、適切な位置にコロンを自動挿入
+        if (num.length >= 3) {
+            const h = num.slice(0, num.length - 2);
+            const m = num.slice(num.length - 2);
+            input.value = `${h}:${m}`;
+        } else {
+            input.value = num;
+        }
+    }
+
+    // --------------------------------------------------------
+    // 料金計算・ロジック処理関連
+    // --------------------------------------------------------
     function selectPlan(type) {
         const nomi = document.getElementById('mode_nomi');
         const bottle = document.getElementById('mode_bottle');
@@ -244,6 +265,7 @@
         }
     }
 
+    // 人数変更時にメンバーごとの時間入力欄を動的に生成
     function generateMembers() {
         const ninzu = parseInt(document.getElementById('ninzu').value) || 1;
         const baseIn = document.getElementById('base_in').value;
@@ -269,19 +291,16 @@
         for (let input of currentInputsOut) savedOut.push(input.value);
 
         let html = '';
-        const optionsHtml = generateTimeOptions();
 
         for (let i = 1; i <= ninzu; i++) {
-            const valIn = (savedIn[i - 1] !== undefined) ? savedIn[i - 1] : baseIn;
-            const valOut = (savedOut[i - 1] !== undefined) ? savedOut[i - 1] : baseOut;
             html += `
                 <div class="member-row">
                     <div class="member-row-header"><span>客${i}</span><span id="m_calc_time_${i}" style="color:#32d74b; font-size:12px;"></span></div>
                     <div class="member-row-body">
                         <span class="time-label">入</span>
-                        <select class="m-in" onchange="calc()">${optionsHtml}</select>
+                        <input type="tel" class="time-input m-in" placeholder="例: 19:30" inputmode="numeric" maxlength="5" oninput="handleTimeInput(this); calc()">
                         <span class="time-label" style="margin-left:5px;">出</span>
-                        <select class="m-out" onchange="calc()">${optionsHtml}</select>
+                        <input type="tel" class="time-input m-out" placeholder="例: 22:00" inputmode="numeric" maxlength="5" oninput="handleTimeInput(this); calc()">
                     </div>
                 </div>`;
         }
@@ -297,10 +316,10 @@
         calc();
     }
 
+    // 全員設定の時間が変わったら、個別メンバーの欄にも自動コピーする
     function syncTimes(type) {
         const baseIn = document.getElementById('base_in').value;
         const baseOut = document.getElementById('base_out').value;
-        
         const memberIn = document.getElementsByClassName('m-in');
         const memberOut = document.getElementsByClassName('m-out');
         
@@ -313,21 +332,25 @@
         calc();
     }
 
-    function computeBillableHours(timeIn, timeOut) {
-        if (!timeIn || !timeOut) return 0;
+    // ★ 「XX:XX」のコロン付き文字列から時間(h)を算出し、0時またぎも自動判定する関数
+    function computeBillableHours(timeStrIn, timeStrOut) {
+        if (!timeStrIn || !timeStrOut || !timeStrIn.includes(':') || !timeStrOut.includes(':')) return 0;
         
-        const [inH, inM] = timeIn.split(':').map(Number);
-        const [outH, outM] = timeOut.split(':').map(Number);
+        const [inH, inM] = timeStrIn.split(':').map(Number);
+        const [outH, outM] = timeStrOut.split(':').map(Number);
+
+        if (inM >= 60 || outM >= 60 || inH >= 24 || outH >= 24) return 0; 
         
         let diffMinutes = (outH * 60 + outM) - (inH * 60 + inM);
         if (diffMinutes <= 0) {
-            diffMinutes += 24 * 60; 
+            diffMinutes += 24 * 60; // 日またぎ自動調整
         }
         return diffMinutes / 60;
     }
 
-    let gData = {};
-
+    // --------------------------------------------------------
+    // 会計計算コアロジック
+    // --------------------------------------------------------
     function calc() {
         let hourlyRate = 0;
         let planName = "未選択";
@@ -343,14 +366,12 @@
         if (useIndiv && ninzu > 1) {
             const memberIn = document.getElementsByClassName('m-in');
             const memberOut = document.getElementsByClassName('m-out');
-            
             for (let i = 0; i < memberIn.length; i++) {
                 const h = computeBillableHours(memberIn[i].value, memberOut[i].value);
                 totalBillableHours += h;
-                
                 const indicator = document.getElementById(`m_calc_time_${i+1}`);
                 if (indicator) {
-                    if (memberIn[i].value && memberOut[i].value) {
+                    if (memberIn[i].value.includes(':') && memberOut[i].value.includes(':')) {
                         indicator.innerText = `${memberIn[i].value}～${memberOut[i].value} (${Math.round(h * 60)}分)`;
                     } else {
                         indicator.innerText = "未入力";
@@ -363,8 +384,7 @@
             const baseOut = document.getElementById('base_out').value;
             const singlePersonHours = computeBillableHours(baseIn, baseOut);
             totalBillableHours = singlePersonHours * ninzu;
-            
-            if (baseIn && baseOut) {
+            if (baseIn.includes(':') && baseOut.includes(':')) {
                 timeDetailsLog = `${baseIn}～${baseOut} (1人:${Math.round(singlePersonHours * 60)}分 ➔ 計:${Math.round(totalBillableHours * 60)}分)`;
             } else {
                 timeDetailsLog = "時間未入力";
@@ -412,20 +432,10 @@
         document.getElementById('per_person').innerText = "1人あたり: " + perPerson.toLocaleString() + "円";
 
         gData = {
-            ninzu: ninzu,
-            plan: planName,
-            hoursText: timeDetailsLog,
-            drink: drinkCount,
-            shot: shotCount,
-            tansan: tansanCount,
-            bottle: bPrice,
-            other: otherPrice,
-            rawSub: subtotal,
-            rawTax: tax,
-            rawTotal: rawTotal,
-            final: finalTotal,
-            sub: adjSubtotal,
-            tax: adjTax,
+            ninzu: ninzu, plan: planName, hoursText: timeDetailsLog,
+            drink: drinkCount, shot: shotCount, tansan: tansanCount, bottle: bPrice, other: otherPrice,
+            rawSub: subtotal, rawTax: tax, rawTotal: rawTotal,
+            final: finalTotal, sub: adjSubtotal, tax: adjTax,
             pay: isCard ? "クレジットカード" : "現金"
         };
     }
@@ -433,16 +443,16 @@
     function getBusinessDate() {
         const now = new Date();
         const hours = now.getHours();
-        if (hours < 8) {
-            now.setDate(now.getDate() - 1);
-        }
+        if (hours < 8) { now.setDate(now.getDate() - 1); }
         return {
             string: `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`,
             shortString: `${now.getMonth() + 1}${now.getDate()}`
         };
     }
 
-    // ★ 決済確認ポップアップを開く
+    // --------------------------------------------------------
+    // ポップアップ・画像保存アクション処理
+    // --------------------------------------------------------
     function openPaymentConfirm() {
         calc();
         const isCard = document.getElementById('use_card').checked;
@@ -452,33 +462,25 @@
         document.getElementById('confirm_alert').style.display = 'flex';
     }
 
-    // ★ 「NO」を押したとき（2秒の警告トースト起動）
     function handleConfirmNo() {
         document.getElementById('confirm_alert').style.display = 'none';
-        
-        const toast = document.getElementById('toast_alert');
-        toast.style.display = 'flex';
-        setTimeout(() => {
-            toast.style.display = 'none';
-        }, 2000); // 2000ミリ秒 = 2秒
+        showToast("決済方法を再度選択してください。", "toast-red");
     }
 
-    // ★ 「OK」を押したとき（名前入力と画像保存処理へ）
     function handleConfirmOk() {
         document.getElementById('confirm_alert').style.display = 'none';
         
         const name = prompt("会計されたお客様名を入力してください。");
-        if (name === null) return;
+        if (name === null) return; 
         inputCustomerName = name.trim();
         
         saveAsImage();
-        document.getElementById('custom_alert').style.display = 'flex';
+        showToast("ダウンロードに保存ができました。", "toast-green");
     }
 
-    function closeAlert() {
-        document.getElementById('custom_alert').style.display = 'none';
-    }
-
+    // --------------------------------------------------------
+    // Canvasによる明細画像の生成＆書き出し処理
+    // --------------------------------------------------------
     function saveAsImage() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -487,37 +489,22 @@
         canvas.width = 440;
         canvas.height = 760;
         
-        ctx.fillStyle = '#121212';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#121212'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#1e1e1e'; ctx.fillRect(20, 20, 400, 720);
+        ctx.strokeStyle = '#333333'; ctx.lineWidth = 1; ctx.strokeRect(20, 20, 400, 720);
         
-        ctx.fillStyle = '#1e1e1e';
-        ctx.fillRect(20, 20, 400, 720);
-        ctx.strokeStyle = '#333333';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(20, 20, 400, 720);
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('スナックバー井上 会計明細', 220, 55);
         
         function drawSectionTitle(text, y) {
-            ctx.textAlign = 'left';
-            ctx.fillStyle = '#888888';
-            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'left'; ctx.fillStyle = '#888888'; ctx.font = '12px sans-serif';
             ctx.fillText(text, 40, y);
-            ctx.strokeStyle = '#333333';
-            ctx.beginPath(); ctx.moveTo(40, y + 6); ctx.lineTo(400, y + 6); ctx.stroke();
+            ctx.strokeStyle = '#333333'; ctx.beginPath(); ctx.moveTo(40, y + 6); ctx.lineTo(400, y + 6); ctx.stroke();
         }
         
         function drawRow(label, value, y, valColor = '#ffffff') {
-            ctx.textAlign = 'left';
-            ctx.fillStyle = '#aaaaaa';
-            ctx.font = '14px sans-serif';
-            ctx.fillText(label, 40, y);
-            ctx.textAlign = 'right';
-            ctx.fillStyle = valColor;
-            ctx.fillText(value, 400, y);
+            ctx.textAlign = 'left'; ctx.fillStyle = '#aaaaaa'; ctx.font = '14px sans-serif'; ctx.fillText(label, 40, y);
+            ctx.textAlign = 'right'; ctx.fillStyle = valColor; ctx.fillText(value, 400, y);
         }
 
         let currentY = 95;
@@ -547,11 +534,8 @@
         drawRow('本来の合計', `${gData.rawTotal.toLocaleString()}円`, currentY); currentY += 35;
         
         drawSectionTitle('決済方法', currentY); currentY += 28;
-        ctx.fillStyle = '#32d74b';
-        ctx.fillRect(40, currentY - 15, 360, 32);
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.textAlign = 'center';
+        ctx.fillStyle = '#32d74b'; ctx.fillRect(40, currentY - 15, 360, 32);
+        ctx.fillStyle = '#000000'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(gData.pay + (isCard ? ' (+10%)' : ' (端数切上)'), 220, currentY + 6);
         currentY += 45;
         
@@ -561,22 +545,15 @@
         drawRow('小計 (調整後)', `${gData.sub.toLocaleString()}円`, currentY); currentY += 25;
         drawRow('消費税 (調整後)', `${gData.tax.toLocaleString()}円`, currentY); currentY += 35;
         
-        ctx.strokeStyle = '#444444';
-        ctx.beginPath(); ctx.moveTo(40, currentY - 15); ctx.lineTo(400, currentY - 15); ctx.stroke();
+        ctx.strokeStyle = '#444444'; ctx.beginPath(); ctx.moveTo(40, currentY - 15); ctx.lineTo(400, currentY - 15); ctx.stroke();
         
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff'; ctx.font = 'bold 18px sans-serif';
         ctx.fillText('確定合計', 40, currentY + 12);
         
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#32d74b';
-        ctx.font = 'bold 32px sans-serif';
+        ctx.textAlign = 'right'; ctx.fillStyle = '#32d74b'; ctx.font = 'bold 32px sans-serif';
         ctx.fillText(`${gData.final.toLocaleString()}円`, 400, currentY + 15);
         
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#888888';
-        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'right'; ctx.fillStyle = '#888888'; ctx.font = '12px sans-serif';
         ctx.fillText(`1人あたり: ${Math.ceil(gData.final / gData.ninzu).toLocaleString()}円`, 400, currentY + 38);
 
         const now = new Date();
@@ -584,10 +561,14 @@
         const safeName = fileRawName.replace(/[/\\?%*:|"<>]/g, '-');
         const filename = `会計明細_${safeName}_${bizDate.shortString}_${now.getHours()}${now.getMinutes()}.png`;
         
-        const link = document.createElement('a');
-        link.download = filename;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = url;
+            link.click();
+            setTimeout(() => { URL.revokeObjectURL(url); }, 100);
+        }, 'image/png');
     }
 </script>
 </body>
