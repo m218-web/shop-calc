@@ -12,10 +12,12 @@
         .input-group { margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         label { font-size: 14px; flex: 1; }
         .input-wrapper { display: flex; align-items: center; gap: 5px; }
-        input[type="number"], input[type="text"] { width: 85px; padding: 10px; border: 1px solid #444; border-radius: 10px; text-align: right; font-size: 16px; background: #2a2a2a; color: #fff; -webkit-appearance: none; }
+        input[type="number"], input[type="text"], input[type="time"] { width: 85px; padding: 10px; border: 1px solid #444; border-radius: 10px; text-align: right; font-size: 16px; background: #2a2a2a; color: #fff; -webkit-appearance: none; color-scheme: dark; }
+        input[type="time"] { width: 95px; text-align: center; }
         input[type="text"].full-width { width: 100%; text-align: left; box-sizing: border-box; }
         input[type="checkbox"] { width: 25px; height: 25px; margin: 0; }
         .unit { font-size: 12px; color: #888; width: 35px; }
+        .time-label { font-size: 11px; color: #888; margin-right: 2px; }
 
         .toggle-btn { width: 100%; padding: 10px; background: #2c2c2e; color: #32d74b; border: 1px solid #32d74b; border-radius: 10px; font-size: 13px; margin: 10px 0; cursor: pointer; }
         .toggle-btn.active { background: #32d74b; color: #000; }
@@ -25,7 +27,10 @@
         .pay-btn { flex: 1; text-align: center; padding: 10px; font-size: 14px; border-radius: 10px; cursor: pointer; color: #aaa; border: none; background: transparent; transition: all 0.2s; }
         .pay-btn.active { background: #32d74b; color: #000; font-weight: bold; }
 
-        .member-row { background: #252525; padding: 8px 12px; border-radius: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .member-row { background: #252525; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; display: block; }
+        .member-row-header { display: flex; justify-content: space-between; font-size: 13px; color: #fff; margin-bottom: 8px; font-weight: bold; }
+        .member-row-body { display: flex; justify-content: space-between; align-items: center; gap: 5px; }
+
         .result-area { margin-top: 15px; padding: 15px; border-radius: 15px; border: 1px solid #333; }
         .normal-res { background: #252525; }
         .adj-res { background: #1a2a1a; border-color: #32d74b; margin-top: 20px; }
@@ -38,7 +43,6 @@
         
         #receipt_atena_group { display: none; margin-top: 10px; animation: fadeIn 0.3s ease; }
         
-        /* 完了通知ポップアップ用スタイル */
         .alert-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
         .alert-box { background: #2c2c2e; padding: 25px; border-radius: 15px; max-width: 280px; width: 80%; text-align: center; border: 1px solid #444; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .alert-msg { font-size: 15px; color: #fff; margin-bottom: 20px; line-height: 1.4; }
@@ -57,9 +61,14 @@
         <label>合計人数</label>
         <div class="input-wrapper"><input type="number" id="ninzu" placeholder="1" min="1" oninput="generateMembers()"><span class="unit">名</span></div>
     </div>
+    
     <div class="input-group">
-        <label>全員の基本時間</label>
-        <div class="input-wrapper"><input type="number" id="base_time" placeholder="0" step="0.5" min="0" oninput="syncTimes()"><span class="unit">h</span></div>
+        <label>全員の入店時間</label>
+        <div class="input-wrapper"><input type="time" id="base_in" step="600" onchange="syncTimes('in')"></div>
+    </div>
+    <div class="input-group">
+        <label>全員の退店時間</label>
+        <div class="input-wrapper"><input type="time" id="base_out" step="600" onchange="syncTimes('out')"></div>
     </div>
 
     <button id="toggle_btn" class="toggle-btn" onclick="toggleMemberList()" style="display:none;">個別時間を調整する ▼</button>
@@ -123,7 +132,19 @@
 <script>
     let isIndividualMode = false;
     let paymentMethod = 'cash';
-    let inputCustomerName = ""; // ポップアップで入力された名前を保持
+    let inputCustomerName = ""; 
+
+    window.onload = function() {
+        const now = new Date();
+        let m = Math.floor(now.getMinutes() / 10) * 10;
+        now.setMinutes(m);
+        const formatTime = (d) => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        
+        document.getElementById('base_in').value = formatTime(now);
+        now.setHours(now.getHours() + 1);
+        document.getElementById('base_out').value = formatTime(now);
+        calc();
+    }
 
     function selectPlan(type) {
         const nomi = document.getElementById('mode_nomi');
@@ -169,14 +190,15 @@
             btn.innerText = '個別時間を調整する ▼';
             btn.classList.remove('active');
             isIndividualMode = false;
-            syncTimes();
+            syncTimes('all');
         }
         calc();
     }
 
     function generateMembers() {
         const ninzu = parseInt(document.getElementById('ninzu').value) || 1;
-        const baseTime = document.getElementById('base_time').value;
+        const baseIn = document.getElementById('base_in').value;
+        const baseOut = document.getElementById('base_out').value;
         const list = document.getElementById('member_list');
         const btn = document.getElementById('toggle_btn');
         
@@ -190,24 +212,60 @@
         }
         btn.style.display = 'block';
 
-        const currentInputs = list.getElementsByClassName('m-time');
-        const savedValues = [];
-        for (let input of currentInputs) savedValues.push(input.value);
+        const currentInputsIn = list.getElementsByClassName('m-in');
+        const currentInputsOut = list.getElementsByClassName('m-out');
+        const savedIn = [];
+        const savedOut = [];
+        for (let input of currentInputsIn) savedIn.push(input.value);
+        for (let input of currentInputsOut) savedOut.push(input.value);
 
         let html = '';
         for (let i = 1; i <= ninzu; i++) {
-            const val = (savedValues[i - 1] !== undefined) ? savedValues[i - 1] : baseTime;
-            html += `<div class="member-row"><label>客${i}</label><div class="input-wrapper"><input type="number" class="m-time" value="${val}" placeholder="0" step="0.5" min="0" oninput="calc()"><span class="unit">h</span></div></div>`;
+            const valIn = (savedIn[i - 1] !== undefined) ? savedIn[i - 1] : baseIn;
+            const valOut = (savedOut[i - 1] !== undefined) ? savedOut[i - 1] : baseOut;
+            html += `
+                <div class="member-row">
+                    <div class="member-row-header"><span>客${i}</span><span id="m_calc_time_${i}" style="color:#32d74b; font-size:12px;"></span></div>
+                    <div class="member-row-body">
+                        <span class="time-label">入</span><input type="time" class="m-in" value="${valIn}" step="600" onchange="calc()">
+                        <span class="time-label" style="margin-left:5px;">出</span><input type="time" class="m-out" value="${valOut}" step="600" onchange="calc()">
+                    </div>
+                </div>`;
         }
         list.innerHTML = html;
         calc();
     }
 
-    function syncTimes() {
-        const baseTime = document.getElementById('base_time').value;
-        const memberInputs = document.getElementsByClassName('m-time');
-        for (let input of memberInputs) input.value = baseTime;
+    function syncTimes(type) {
+        const baseIn = document.getElementById('base_in').value;
+        const baseOut = document.getElementById('base_out').value;
+        
+        const memberIn = document.getElementsByClassName('m-in');
+        const memberOut = document.getElementsByClassName('m-out');
+        
+        if (type === 'in' || type === 'all') {
+            for (let input of memberIn) input.value = baseIn;
+        }
+        if (type === 'out' || type === 'all') {
+            for (let input of memberOut) input.value = baseOut;
+        }
         calc();
+    }
+
+    // ★ 30分切り上げを廃止し、分単位からストレートにh数を算出する（1時間10分 ➔ 1.1666...h）
+    function computeBillableHours(timeIn, timeOut) {
+        if (!timeIn || !timeOut) return 0;
+        
+        const [inH, inM] = timeIn.split(':').map(Number);
+        const [outH, outM] = timeOut.split(':').map(Number);
+        
+        let diffMinutes = (outH * 60 + outM) - (inH * 60 + inM);
+        
+        if (diffMinutes <= 0) {
+            diffMinutes += 24 * 60; 
+        }
+        
+        return diffMinutes / 60;
     }
 
     let gData = {};
@@ -219,16 +277,30 @@
         if (document.getElementById('mode_bottle').checked) { hourlyRate = 2500; planName = "ボトル利用"; }
 
         const ninzu = parseInt(document.getElementById('ninzu').value) || 1;
-        let totalHours = 0;
+        let totalBillableHours = 0;
+        let timeDetailsLog = "";
 
         if (isIndividualMode) {
-            const memberInputs = document.getElementsByClassName('m-time');
-            for (let input of memberInputs) totalHours += parseFloat(input.value) || 0;
+            const memberIn = document.getElementsByClassName('m-in');
+            const memberOut = document.getElementsByClassName('m-out');
+            
+            for (let i = 0; i < memberIn.length; i++) {
+                const h = computeBillableHours(memberIn[i].value, memberOut[i].value);
+                totalBillableHours += h;
+                
+                const indicator = document.getElementById(`m_calc_time_${i+1}`);
+                if (indicator) indicator.innerText = `${memberIn[i].value}～${memberOut[i].value} (${Math.round(h * 60)}分)`;
+            }
+            timeDetailsLog = `個別調整 (計 ${Math.round(totalBillableHours * 60)}分)`;
         } else {
-            totalHours = (parseFloat(document.getElementById('base_time').value) || 0) * ninzu;
+            const baseIn = document.getElementById('base_in').value;
+            const baseOut = document.getElementById('base_out').value;
+            const singlePersonHours = computeBillableHours(baseIn, baseOut);
+            totalBillableHours = singlePersonHours * ninzu;
+            timeDetailsLog = `${baseIn}～${baseOut} (1人:${Math.round(singlePersonHours * 60)}分 ➔ 計:${Math.round(totalBillableHours * 60)}分)`;
         }
 
-        const baseTotal = totalHours * hourlyRate;
+        const baseTotal = totalBillableHours * hourlyRate;
         const drinkCount = parseFloat(document.getElementById('drink').value) || 0;
         const shotCount = parseFloat(document.getElementById('shot').value) || 0;
         const tansanCount = parseFloat(document.getElementById('tansan').value) || 0;
@@ -263,7 +335,7 @@
         gData = {
             ninzu: ninzu,
             plan: planName,
-            hours: totalHours,
+            hoursText: timeDetailsLog,
             drink: drinkCount,
             shot: shotCount,
             tansan: tansanCount,
@@ -279,22 +351,27 @@
         };
     }
 
+    function getBusinessDate() {
+        const now = new Date();
+        const hours = now.getHours();
+        if (hours < 8) {
+            now.setDate(now.getDate() - 1);
+        }
+        return {
+            string: `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`,
+            shortString: `${now.getMonth() + 1}${now.getDate()}`
+        };
+    }
+
     function checkAndSaveImage() {
         calc();
         const payName = paymentMethod === 'card' ? "【 クレジットカード 】" : "【 現金 】";
         
-        // 1. まず決済方法の確認
         if (confirm(`決済方法は ${payName} でお間違いないですか？`)) {
-            // 2. 決済方法OKなら、名前の入力を求める
             const name = prompt("会計されたお客様名を入力してください。");
-            
-            // キャンセルされた場合は処理を中断
             if (name === null) return;
-            
-            // 入力された名前（空欄の場合は未入力）をセット
             inputCustomerName = name.trim();
             
-            // 3. 画像生成と保存、ポップアップ表示
             saveAsImage();
             document.getElementById('custom_alert').style.display = 'flex';
         } else {
@@ -325,7 +402,7 @@
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 18px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('スナックバー井上 会計計算機', 220, 55);
+        ctx.fillText('スナックバー井上 会計明細', 220, 55);
         
         function drawSectionTitle(text, y) {
             ctx.textAlign = 'left';
@@ -347,15 +424,18 @@
         }
 
         let currentY = 95;
-        
-        // お客様名（保存時に入力された名前をここに描画）
-        drawSectionTitle('お客様名', currentY); currentY += 28;
+        const bizDate = getBusinessDate();
+
+        drawSectionTitle('ご利用情報', currentY); currentY += 28;
         const displayName = inputCustomerName ? inputCustomerName + "様" : "（未入力）";
-        drawRow('お名前', displayName, currentY); currentY += 35;
+        drawRow('お名前', displayName, currentY); currentY += 25;
+        drawRow('ご利用日', bizDate.string, currentY); currentY += 35;
         
         drawSectionTitle('基本設定 / プラン', currentY); currentY += 28;
         drawRow('合計人数', `${gData.ninzu} 名`, currentY); currentY += 25;
-        drawRow('プラン選択', `${gData.plan} (計 ${gData.hours}h)`, currentY); currentY += 35;
+        drawRow('プラン / 時間', `${gData.plan}`, currentY); currentY += 22;
+        ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif';
+        ctx.fillText(gData.hoursText, 400, currentY); currentY += 35;
         
         drawSectionTitle('オーダー明細', currentY); currentY += 28;
         drawRow('ドリンク', `${gData.drink} 杯`, currentY); currentY += 25;
@@ -405,7 +485,7 @@
         const now = new Date();
         const fileRawName = inputCustomerName || "未入力";
         const safeName = fileRawName.replace(/[/\\?%*:|"<>]/g, '-');
-        const filename = `会計明細_${safeName}_${now.getMonth()+1}${now.getDate()}_${now.getHours()}${now.getMinutes()}.png`;
+        const filename = `会計明細_${safeName}_${bizDate.shortString}_${now.getHours()}${now.getMinutes()}.png`;
         
         const link = document.createElement('a');
         link.download = filename;
