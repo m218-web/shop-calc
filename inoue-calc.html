@@ -16,9 +16,6 @@
         input[type="text"].full-width { width: 100%; text-align: left; box-sizing: border-box; }
         input[type="checkbox"] { width: 25px; height: 25px; margin: 0; }
         .unit { font-size: 12px; color: #888; width: 35px; }
-        
-        .customer-input { flex: 1; text-align: left !important; }
-        .customer-unit { font-size: 16px; color: #fff; margin-left: 5px; }
 
         .toggle-btn { width: 100%; padding: 10px; background: #2c2c2e; color: #32d74b; border: 1px solid #32d74b; border-radius: 10px; font-size: 13px; margin: 10px 0; cursor: pointer; }
         .toggle-btn.active { background: #32d74b; color: #000; }
@@ -54,12 +51,6 @@
 <body>
 <div class="card">
     <h2>スナックバー井上 会計計算機</h2>
-    
-    <div class="section-title">お客様名</div>
-    <div class="input-group" style="justify-content: flex-start; gap: 0;">
-        <input type="text" id="customer_name" class="customer-input" placeholder="例：井上" oninput="calc()">
-        <span class="customer-unit">様</span>
-    </div>
 
     <div class="section-title">基本設定</div>
     <div class="input-group">
@@ -132,6 +123,7 @@
 <script>
     let isIndividualMode = false;
     let paymentMethod = 'cash';
+    let inputCustomerName = ""; // ポップアップで入力された名前を保持
 
     function selectPlan(type) {
         const nomi = document.getElementById('mode_nomi');
@@ -241,9 +233,9 @@
         const shotCount = parseFloat(document.getElementById('shot').value) || 0;
         const tansanCount = parseFloat(document.getElementById('tansan').value) || 0;
         const bPrice = parseFloat(document.getElementById('bottle_price').value) || 0;
-        const other = parseFloat(document.getElementById('other').value) || 0;
+        const otherPrice = parseFloat(document.getElementById('other').value) || 0;
 
-        const subtotal = baseTotal + (drinkCount * 1000) + (shotCount * 1200) + (tansanCount * 500) + bPrice + other;
+        const subtotal = baseTotal + (drinkCount * 1000) + (shotCount * 1200) + (tansanCount * 500) + bPrice + otherPrice;
         const tax = Math.floor(subtotal * 0.1);
         const rawTotal = subtotal + tax;
 
@@ -268,11 +260,7 @@
         document.getElementById('final_total').innerText = finalTotal.toLocaleString() + "円";
         document.getElementById('per_person').innerText = "1人あたり: " + perPerson.toLocaleString() + "円";
 
-        const cNameInput = document.getElementById('customer_name').value;
-
         gData = {
-            customer: cNameInput ? cNameInput + "様" : "（未入力）",
-            customerRaw: cNameInput || "未入力",
             ninzu: ninzu,
             plan: planName,
             hours: totalHours,
@@ -280,7 +268,7 @@
             shot: shotCount,
             tansan: tansanCount,
             bottle: bPrice,
-            other: other,
+            other: otherPrice,
             rawSub: subtotal,
             rawTax: tax,
             rawTotal: rawTotal,
@@ -294,7 +282,19 @@
     function checkAndSaveImage() {
         calc();
         const payName = paymentMethod === 'card' ? "【 クレジットカード 】" : "【 現金 】";
+        
+        // 1. まず決済方法の確認
         if (confirm(`決済方法は ${payName} でお間違いないですか？`)) {
+            // 2. 決済方法OKなら、名前の入力を求める
+            const name = prompt("会計されたお客様名を入力してください。");
+            
+            // キャンセルされた場合は処理を中断
+            if (name === null) return;
+            
+            // 入力された名前（空欄の場合は未入力）をセット
+            inputCustomerName = name.trim();
+            
+            // 3. 画像生成と保存、ポップアップ表示
             saveAsImage();
             document.getElementById('custom_alert').style.display = 'flex';
         } else {
@@ -348,8 +348,10 @@
 
         let currentY = 95;
         
+        // お客様名（保存時に入力された名前をここに描画）
         drawSectionTitle('お客様名', currentY); currentY += 28;
-        drawRow('お名前', gData.customer, currentY); currentY += 35;
+        const displayName = inputCustomerName ? inputCustomerName + "様" : "（未入力）";
+        drawRow('お名前', displayName, currentY); currentY += 35;
         
         drawSectionTitle('基本設定 / プラン', currentY); currentY += 28;
         drawRow('合計人数', `${gData.ninzu} 名`, currentY); currentY += 25;
@@ -401,7 +403,8 @@
         ctx.fillText(`1人あたり: ${Math.ceil(gData.final / gData.ninzu).toLocaleString()}円`, 400, currentY + 38);
 
         const now = new Date();
-        const safeName = gData.customerRaw.replace(/[/\\?%*:|"<>]/g, '-');
+        const fileRawName = inputCustomerName || "未入力";
+        const safeName = fileRawName.replace(/[/\\?%*:|"<>]/g, '-');
         const filename = `会計明細_${safeName}_${now.getMonth()+1}${now.getDate()}_${now.getHours()}${now.getMinutes()}.png`;
         
         const link = document.createElement('a');
