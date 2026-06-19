@@ -6,7 +6,7 @@
     <title>店舗会計計算</title>
     <style>
         body { font-family: -apple-system, sans-serif; background-color: #121212; color: #eee; padding: 20px; margin: 0; }
-        .card { background: #1e1e1e; padding: 20px; border-radius: 20px; max-width: 400px; margin: 0 auto; border: 1px solid #333; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 20px; max-width: 400px; margin: 0 auto; border: 1px solid #333; position: relative; }
         h2 { text-align: center; color: #fff; font-size: 18px; margin-bottom: 20px; }
         .section-title { font-size: 12px; color: #888; margin: 20px 0 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
         .input-group { margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -17,7 +17,6 @@
         input[type="checkbox"] { width: 25px; height: 25px; margin: 0; }
         .unit { font-size: 12px; color: #888; width: 35px; }
         
-        /* お客様名用の特別な幅調整 */
         .customer-input { flex: 1; text-align: left !important; }
         .customer-unit { font-size: 16px; color: #fff; margin-left: 5px; }
 
@@ -41,7 +40,15 @@
         .reset-btn { width: 100%; padding: 12px; background: #3a3a3c; color: #fff; border: none; border-radius: 12px; font-size: 14px; margin-top: 10px; cursor: pointer; }
         
         #receipt_atena_group { display: none; margin-top: 10px; animation: fadeIn 0.3s ease; }
+        
+        /* 完了通知ポップアップ用スタイル */
+        .alert-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+        .alert-box { background: #2c2c2e; padding: 25px; border-radius: 15px; max-width: 280px; width: 80%; text-align: center; border: 1px solid #444; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .alert-msg { font-size: 15px; color: #fff; margin-bottom: 20px; line-height: 1.4; }
+        .alert-close-btn { width: 100%; padding: 10px; background: #32d74b; color: #000; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
+        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -111,8 +118,15 @@
         </div>
     </div>
 
-    <button class="save-btn" onclick="saveAsImage()">計算結果を画像保存</button>
+    <button class="save-btn" onclick="checkAndSaveImage()">計算結果を画像保存</button>
     <button class="reset-btn" onclick="window.location.reload()">入力をリセット</button>
+</div>
+
+<div id="custom_alert" class="alert-overlay">
+    <div class="alert-box">
+        <div class="alert-msg">ダウンロードに保存ができました。</div>
+        <button class="alert-close-btn" onclick="closeAlert()">閉じる</button>
+    </div>
 </div>
 
 <script>
@@ -144,7 +158,6 @@
         calc();
     }
 
-    // 領収書チェック時の自動コピー機能を削除し、常に空欄から入力できるように変更
     function toggleReceiptAtena() {
         const checkbox = document.getElementById('need_receipt');
         const group = document.getElementById('receipt_atena_group');
@@ -224,13 +237,13 @@
         }
 
         const baseTotal = totalHours * hourlyRate;
-        const drink = (parseFloat(document.getElementById('drink').value) || 0) * 1000;
-        const shot = (parseFloat(document.getElementById('shot').value) || 0) * 1200;
-        const tansan = (parseFloat(document.getElementById('tansan').value) || 0) * 500;
+        const drinkCount = parseFloat(document.getElementById('drink').value) || 0;
+        const shotCount = parseFloat(document.getElementById('shot').value) || 0;
+        const tansanCount = parseFloat(document.getElementById('tansan').value) || 0;
         const bPrice = parseFloat(document.getElementById('bottle_price').value) || 0;
         const other = parseFloat(document.getElementById('other').value) || 0;
 
-        const subtotal = baseTotal + drink + shot + tansan + bPrice + other;
+        const subtotal = baseTotal + (drinkCount * 1000) + (shotCount * 1200) + (tansanCount * 500) + bPrice + other;
         const tax = Math.floor(subtotal * 0.1);
         const rawTotal = subtotal + tax;
 
@@ -255,16 +268,22 @@
         document.getElementById('final_total').innerText = finalTotal.toLocaleString() + "円";
         document.getElementById('per_person').innerText = "1人あたり: " + perPerson.toLocaleString() + "円";
 
-        // 画像用データはお客様名が空欄の場合は「（未入力）」、入っている場合は「〇〇様」にする
         const cNameInput = document.getElementById('customer_name').value;
-        const cNameFormatted = cNameInput ? cNameInput + "様" : "（未入力）";
 
         gData = {
-            customer: cNameFormatted,
+            customer: cNameInput ? cNameInput + "様" : "（未入力）",
             customerRaw: cNameInput || "未入力",
             ninzu: ninzu,
             plan: planName,
             hours: totalHours,
+            drink: drinkCount,
+            shot: shotCount,
+            tansan: tansanCount,
+            bottle: bPrice,
+            other: other,
+            rawSub: subtotal,
+            rawTax: tax,
+            rawTotal: rawTotal,
             final: finalTotal,
             sub: adjSubtotal,
             tax: adjTax,
@@ -272,67 +291,119 @@
         };
     }
 
-    function saveAsImage() {
+    function checkAndSaveImage() {
         calc();
-        
+        const payName = paymentMethod === 'card' ? "【 クレジットカード 】" : "【 現金 】";
+        if (confirm(`決済方法は ${payName} でお間違いないですか？`)) {
+            saveAsImage();
+            // 保存処理の直後にカスタムアラートを表示
+            document.getElementById('custom_alert').style.display = 'flex';
+        } else {
+            alert("決済方法を再選択してください。");
+        }
+    }
+
+    function closeAlert() {
+        document.getElementById('custom_alert').style.display = 'none';
+    }
+
+    function saveAsImage() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        canvas.width = 600;
-        canvas.height = 450;
+        canvas.width = 440;
+        canvas.height = 760;
         
-        ctx.fillStyle = '#1e1e1e';
+        ctx.fillStyle = '#121212';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        ctx.strokeStyle = '#32d74b';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 24px sans-serif';
-        ctx.fillText('スナックバー井上 会計明細', 40, 60);
-        
-        const now = new Date();
-        const dateStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-        ctx.fillStyle = '#888888';
-        ctx.font = '14px sans-serif';
-        ctx.fillText(`発行日時: ${dateStr}`, 40, 90);
-        
+        ctx.fillStyle = '#1e1e1e';
+        ctx.fillRect(20, 20, 400, 720);
         ctx.strokeStyle = '#333333';
         ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(35, 110); ctx.lineTo(565, 110); ctx.stroke();
+        ctx.strokeRect(20, 20, 400, 720);
         
-        ctx.fillStyle = '#aaaaaa';
-        ctx.font = '16px sans-serif';
-        let y = 140;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('スナックバー井上 会計計算機', 220, 55);
         
-        ctx.fillText(`お客様名 :`, 40, y);
-        ctx.fillStyle = '#ffffff'; ctx.fillText(gData.customer, 180, y); ctx.fillStyle = '#aaaaaa'; y += 35;
+        function drawSectionTitle(text, y) {
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#888888';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(text, 40, y);
+            ctx.strokeStyle = '#333333';
+            ctx.beginPath(); ctx.moveTo(40, y + 6); ctx.lineTo(400, y + 6); ctx.stroke();
+        }
         
-        ctx.fillText(`ご利用人数 :`, 40, y);
-        ctx.fillStyle = '#ffffff'; ctx.fillText(`${gData.ninzu} 名`, 180, y); ctx.fillStyle = '#aaaaaa'; y += 35;
+        function drawRow(label, value, y, valColor = '#ffffff') {
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#aaaaaa';
+            ctx.font = '14px sans-serif';
+            ctx.fillText(label, 40, y);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = valColor;
+            ctx.fillText(value, 400, y);
+        }
+
+        let currentY = 95;
         
-        ctx.fillText(`選択プラン :`, 40, y);
-        ctx.fillStyle = '#ffffff'; ctx.fillText(`${gData.plan} (計 ${gData.hours}h)`, 180, y); ctx.fillStyle = '#aaaaaa'; y += 35;
+        drawSectionTitle('お客様名', currentY); currentY += 28;
+        drawRow('お名前', gData.customer, currentY); currentY += 35;
         
-        ctx.fillText(`決済方法 :`, 40, y);
-        ctx.fillStyle = '#ffffff'; ctx.fillText(gData.pay, 180, y); ctx.fillStyle = '#aaaaaa'; y += 45;
+        drawSectionTitle('基本設定 / プラン', currentY); currentY += 28;
+        drawRow('合計人数', `${gData.ninzu} 名`, currentY); currentY += 25;
+        drawRow('プラン選択', `${gData.plan} (計 ${gData.hours}h)`, currentY); currentY += 35;
         
-        ctx.beginPath(); ctx.moveTo(35, y - 15); ctx.lineTo(565, y - 15); ctx.stroke();
+        drawSectionTitle('オーダー明細', currentY); currentY += 28;
+        drawRow('ドリンク', `${gData.drink} 杯`, currentY); currentY += 25;
+        drawRow('ショット', `${gData.shot} 杯`, currentY); currentY += 25;
+        drawRow('炭酸', `${gData.tansan} 本`, currentY); currentY += 25;
+        drawRow('ボトル / シャンパン', `${gData.bottle.toLocaleString()} 円`, currentY); currentY += 25;
+        drawRow('other', `${gData.other.toLocaleString()} 円`, currentY); currentY += 35;
         
-        ctx.fillText(`小計 (税抜調整後) :`, 40, y);
-        ctx.fillText(`${gData.sub.toLocaleString()} 円`, 240, y); y += 30;
-        ctx.fillText(`消費税 (10%内税) :`, 40, y);
-        ctx.fillText(`${gData.tax.toLocaleString()} 円`, 240, y); y += 45;
+        drawSectionTitle('本来の計算 (1円単位)', currentY); currentY += 28;
+        drawRow('小計 (税抜)', `${gData.rawSub.toLocaleString()}円`, currentY); currentY += 25;
+        drawRow('消費税 (10%)', `${gData.rawTax.toLocaleString()}円`, currentY); currentY += 25;
+        drawRow('本来の合計', `${gData.rawTotal.toLocaleString()}円`, currentY); currentY += 35;
         
+        drawSectionTitle('決済方法', currentY); currentY += 28;
         ctx.fillStyle = '#32d74b';
-        ctx.font = 'bold 20px sans-serif';
-        ctx.fillText(`確定合計金額 :`, 40, y);
-        ctx.font = 'bold 36px sans-serif';
-        ctx.fillText(`¥${gData.final.toLocaleString()}-`, 220, y + 8);
+        ctx.fillRect(40, currentY - 15, 360, 32);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(gData.pay + (paymentMethod === 'card' ? ' (+10%)' : ' (端数切上)'), 220, currentY + 6);
+        currentY += 45;
         
+        const titleText = paymentMethod === 'card' ? "請求用 (端数調整後 + カード10%)" : "請求用 (端数切上適用)";
+        drawSectionTitle(titleText, currentY); currentY += 32;
+        
+        drawRow('小計 (調整後)', `${gData.sub.toLocaleString()}円`, currentY); currentY += 25;
+        drawRow('消費税 (調整後)', `${gData.tax.toLocaleString()}円`, currentY); currentY += 35;
+        
+        ctx.strokeStyle = '#444444';
+        ctx.beginPath(); ctx.moveTo(40, currentY - 15); ctx.lineTo(400, currentY - 15); stroke();
+        
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText('確定合計', 40, currentY + 12);
+        
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#32d74b';
+        ctx.font = 'bold 32px sans-serif';
+        ctx.fillText(`${gData.final.toLocaleString()}円`, 400, currentY + 15);
+        
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#888888';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(`1人あたり: ${Math.ceil(gData.final / gData.ninzu).toLocaleString()}円`, 400, currentY + 38);
+
+        const now = new Date();
         const safeName = gData.customerRaw.replace(/[/\\?%*:|"<>]/g, '-');
-        const filename = `会計_${safeName}_${now.getMonth()+1}${now.getDate()}_${now.getHours()}${now.getMinutes()}.png`;
+        const filename = `会計明細_${safeName}_${now.getMonth()+1}${now.getDate()}_${now.getHours()}${now.getMinutes()}.png`;
         
         const link = document.createElement('a');
         link.download = filename;
