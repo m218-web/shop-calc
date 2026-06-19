@@ -296,7 +296,6 @@
         const payName = paymentMethod === 'card' ? "【 クレジットカード 】" : "【 現金 】";
         if (confirm(`決済方法は ${payName} でお間違いないですか？`)) {
             saveAsImage();
-            // 保存処理の直後にカスタムアラートを表示
             document.getElementById('custom_alert').style.display = 'flex';
         } else {
             alert("決済方法を再選択してください。");
@@ -361,7 +360,7 @@
         drawRow('ショット', `${gData.shot} 杯`, currentY); currentY += 25;
         drawRow('炭酸', `${gData.tansan} 本`, currentY); currentY += 25;
         drawRow('ボトル / シャンパン', `${gData.bottle.toLocaleString()} 円`, currentY); currentY += 25;
-        drawRow('other', `${gData.other.toLocaleString()} 円`, currentY); currentY += 35;
+        drawRow('その他', `${gData.other.toLocaleString()} 円`, currentY); currentY += 35;
         
         drawSectionTitle('本来の計算 (1円単位)', currentY); currentY += 28;
         drawRow('小計 (税抜)', `${gData.rawSub.toLocaleString()}円`, currentY); currentY += 25;
@@ -384,7 +383,7 @@
         drawRow('消費税 (調整後)', `${gData.tax.toLocaleString()}円`, currentY); currentY += 35;
         
         ctx.strokeStyle = '#444444';
-        ctx.beginPath(); ctx.moveTo(40, currentY - 15); ctx.lineTo(400, currentY - 15); stroke();
+        ctx.beginPath(); ctx.moveTo(40, currentY - 15); ctx.lineTo(400, currentY - 15); ctx.stroke();
         
         ctx.textAlign = 'left';
         ctx.fillStyle = '#ffffff';
